@@ -1,9 +1,10 @@
 package mmsego
 
 import (
-    "github.com/awsong/go-darts"
+    "darts"
     "math"
     "unicode"
+//    "log"
 )
 
 type Segmenter struct {
@@ -187,57 +188,52 @@ func (s *Segmenter) Init(dictPath string) {
         panic(err)
     }
 }
-func (s *Segmenter) Mmseg(inString string, initOffset int, takeWord func(int, int), takeThesaurus func(int, int), lastPiece bool) (lstPos int) {
-    inRunes := []rune(inString)
-    var pos = make([]int, len(inRunes)+1)
-    pos[0] = 0
-    for i, r := range inRunes {
-        pos[i+1] = pos[i] + len(string(r))
+func (s *Segmenter) LoadText(path string) {
+    var err error
+    s.dict, err = darts.Import(path,"tmp.lib",false)
+    if err != nil {
+        panic(err)
     }
-    offset := 0
+}
+func (s *Segmenter) Mmseg(line string)[]string{
+    //log.Println("start mmseg:",line)
+    var result []string
+    inRunes := []rune(line)
+    lens := len(inRunes)
+    nextOffset := 0
     nextPunct := 0
-    eol := false
-    for offset < len(inRunes) {
-        if offset == nextPunct && !eol {
-            offset++
-            //find the next non-Punct offset
-            for offset < len(inRunes) && !unicode.IsLetter(inRunes[offset]) {
-                offset++
+    for nextPunct < lens {
+        if unicode.IsPunct(inRunes[nextPunct]){
+            punct := inRunes[nextPunct]
+            //log.Println(nextOffset,nextPunct,string(punct))
+            for _,str := range s.Split(inRunes[nextOffset:nextPunct]){
+                result = append(result,str)
             }
-            //only puncts left, return
-            if offset == len(inRunes) {
-                return pos[offset]
-            }
-            //find the next Punct after offset
-            for i, r := range inRunes[offset:] {
-                if unicode.IsPunct(r) {
-                    nextPunct = i + offset
-                    break
-                }
-                if i+offset == len(inRunes)-1 {
-                    eol = true
-                }
-            }
+            result = append(result,string(punct))
+            nextOffset = nextPunct+1
         }
-        var chunks [][]darts.ResultPair
-        if eol {
-            if lastPiece {
-                chunks = getChunks(inRunes[offset:], s.dict)
-            } else {
-                return pos[offset]
-            }
-        } else {
-            chunks = getChunks(inRunes[offset:nextPunct], s.dict)
-        }
-        if 0 == len(chunks) {
-            panic("error, length of chunks is zero")
-        }
-        chunk := filterChunksByRules(chunks)
-        takeWord(initOffset+pos[offset], pos[offset+chunk[0].PrefixLen]-pos[offset])
-        offset += chunk[0].PrefixLen
+        nextPunct++
     }
-    if offset > len(inRunes) {
-        panic("error MMseg")
+    for _,str := range s.Split(inRunes[nextOffset:]){
+        result = append(result,str)
     }
-    return pos[offset]
+
+    //log.Println("mmseg:",result)
+    return result
+}
+func (s *Segmenter) Split(inRunes []rune)[]string{
+    var result []string
+    lens := len(inRunes)
+    offset := 0
+    var chunks [][]darts.ResultPair
+    var wchunk []darts.ResultPair
+    for offset < lens{
+        chunks = getChunks(inRunes[offset:], s.dict)
+        wchunk = filterChunksByRules(chunks)
+        result = append(result,string(inRunes[offset:offset+wchunk[0].PrefixLen]))
+        //log.Println(string(inRunes[offset:offset+wchunk[0].PrefixLen]))
+        offset += wchunk[0].PrefixLen
+    }
+    //log.Println("split:",string(inRunes),result)
+    return result
 }

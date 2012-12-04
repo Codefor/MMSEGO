@@ -5,38 +5,21 @@ package main
 import (
     "fmt"
     "time"
-    "os"
     "mmsego"
-    "bufio"
     "log"
-    "runtime/pprof"
     )
 
 func main() {
+    log.SetFlags(log.Lshortfile | log.LstdFlags | log.Lmicroseconds)
     var s = new(mmsego.Segmenter)
-    s.Init("/public/development/go/src/mmsego/darts.lib")
-    f, err := os.Create("/tmp/gprof")
-    if err != nil {
-	log.Fatal(err)
-    }
-    pprof.StartCPUProfile(f)
-    defer pprof.StopCPUProfile()
-
+    //s.Init("../darts/darts.lib")
+    //s.LoadText("../data/words.dic")
+    s.Init("tmp.lib")
     t := time.Now()
-    offset := 0
-
-    unifile, _ := os.Open("/tmp/a.txt")
-    uniLineReader := bufio.NewReaderSize(unifile, 4000)
-    line, bufErr := uniLineReader.ReadString('\n')
-    for nil == bufErr {
-	//takeWord := func(off int, length int){ fmt.Printf("%s ", string(line[off-offset:off-offset+length])) }
-	takeWord := func(off, length int){ }
-	s.Mmseg(line[:], offset, takeWord, nil, false)
-	offset += len(line)
-	line, bufErr = uniLineReader.ReadString('\n')
-    }
-    takeWord := func(off int, length int){ fmt.Printf("%s ", string(line[off-offset:off-offset+length])) }
-    s.Mmseg(line, offset, takeWord, nil, true)
-
+    s.Mmseg("我爱天安门,哈哈")
+    s.Mmseg("南京市长江大桥欢迎您?错误")
+    //s.Split([]rune("南京市长江大桥欢迎您?错误"))
+    s.Mmseg("营销系统开发部首届游戏大赛")
+    //s.Split([]rune("营销系统开发部首届游戏大赛"))
     fmt.Printf("Duration: %v\n", time.Since(t))
 }
